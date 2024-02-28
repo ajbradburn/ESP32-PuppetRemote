@@ -70,16 +70,18 @@ audio_out.shift
 print('Starting')
 # continuously read audio samples from the WAV file 
 # and write them to an I2S DAC
-try:
-    while True:
-        num_read = wav.readinto(wav_samples_mv)
-        if num_read == 0:
-            break
-        num_written = 0
-        while num_written < num_read:
-            num_written += audio_out.write(wav_samples_mv[num_written:num_read])
-except:
-    print('caught exception {} {}'.format(type(e).__name__, e))
+while True:
+    num_read = wav.readinto(wav_samples_mv)
+    if num_read == 0:
+        break
+    num_written = 0
+    # Increase the volume.
+    #I2S.shift(buf=wav_samples_mv, bits=16, shift=2)
+    while num_written < num_read:
+        num_written += audio_out.write(wav_samples_mv[num_written:num_read])
+#try:
+#except (KeyboardInterrupt, Exception) as e:
+#    print('caught exception {} {}'.format(type(e).__name__, e))
 
 
 '''
