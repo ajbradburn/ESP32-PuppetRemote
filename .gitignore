@@ -1,2 +1,7 @@
 .venv/
 pca9685/
+*.svg
+*.zip
+\#auto_saved_files\#
+*.lck
+fp-info-cache
