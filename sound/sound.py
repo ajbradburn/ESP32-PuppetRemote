@@ -25,6 +25,7 @@ import uos
 #======= USER CONFIGURATION =======
 #WAV_FILE = 'chimes.wav'
 WAV_FILE = 'snake.wav'
+#WAV_FILE = 'infinity.wav'
 #WAV_FILE = 'chimes-22050.wav'
 SAMPLE_RATE_IN_HZ = 44100
 #======= USER CONFIGURATION =======
@@ -76,7 +77,7 @@ while True:
         break
     num_written = 0
     # Increase the volume.
-    #I2S.shift(buf=wav_samples_mv, bits=16, shift=2)
+    #I2S.shift(buf=wav_samples_mv, bits=16, shift=1)
     while num_written < num_read:
         num_written += audio_out.write(wav_samples_mv[num_written:num_read])
 #try:
