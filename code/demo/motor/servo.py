@@ -1,6 +1,6 @@
 import machine
 
-i2c = machine.I2C(0, scl=42, sda=41)
+i2c = machine.I2C(0, scl=3, sda=8)
 
 import servo
 import time

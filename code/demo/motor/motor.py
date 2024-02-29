@@ -1,7 +1,7 @@
 import machine
 
-mf = machine.Pin(47, machine.Pin.OUT) # Motor Forward
-mb = machine.Pin(48, machine.Pin.OUT) # Motor Backward
+mf = machine.Pin(9, machine.Pin.OUT) # Motor Forward
+mb = machine.Pin(10, machine.Pin.OUT) # Motor Backward
 
 import time
 
