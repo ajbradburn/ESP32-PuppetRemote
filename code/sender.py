@@ -18,7 +18,8 @@ sta.active(True)
 
 e = espnow.ESPNow()
 e.active(True)
-peer = b'4\x85\x18\x90\x85X'   # MAC address of peer's wifi interface
+#peer = b'4\x85\x18\x90\x85X'   # MAC address of peer's wifi interface
+peer = b'4\x85\x18\x91\xf7|'   # MAC address of peer's wifi interface
 e.add_peer(peer)      # Must add_peer() before send()
 
 '''
