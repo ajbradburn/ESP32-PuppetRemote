@@ -7,7 +7,7 @@ def emptyFunction():
 # Connect to the PCA9685 servo driver.
 i2c = I2C(0, scl=3, sda=8)
 ser = emptyFunction()
-print(ser) # CRITICALLY IMPORTANT. This print statement enables I2S to work properly. Some combination of the i2c assignment, and then a variable assignemtn afterwards makes the I2S sound terrible. Simply printing the variable resolves the issue...
+#print('Safety Print') # CRITICALLY IMPORTANT. This print statement enables I2S to work properly. Some combination of the i2c assignment, and then a variable assignemtn afterwards makes the I2S sound terrible. Simply printing the variable resolves the issue...
 # End Servo
 
 # Start Sound Config
