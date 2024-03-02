@@ -1,27 +1,7 @@
-import network
-import espnow
-
-import ubinascii
-print('Device MAC Address:')
-print(network.WLAN().config('mac'))
-print(ubinascii.hexlify(network.WLAN().config('mac'),':').decode())
-
-from machine import I2C, Pin, I2S, SDCard
-import time
-from uos import mount, umount
-from os import listdir
-from time import sleep
+from machine import I2C, Pin, I2S
 
 def emptyFunction():
     return
-
-# A WLAN interface must be active to send()/recv()
-sta = network.WLAN(network.STA_IF)
-sta.active(True)
-#sta.disconnect()   # Because ESP8266 auto-connects to last Access Point
-
-e = espnow.ESPNow()
-e.active(True)
 
 # Start Servo Config
 # Connect to the PCA9685 servo driver.
@@ -29,12 +9,6 @@ i2c = I2C(0, scl=3, sda=8)
 ser = emptyFunction()
 print(ser) # CRITICALLY IMPORTANT. This print statement enables I2S to work properly. Some combination of the i2c assignment, and then a variable assignemtn afterwards makes the I2S sound terrible. Simply printing the variable resolves the issue...
 # End Servo
-
-# Start Motor Config
-# Configure the forward and reverse pins.
-mf = Pin(9, Pin.OUT) # Motor Forward
-mb = Pin(10, Pin.OUT) # Motor Backward
-# End Motor
 
 # Start Sound Config
 # Configure the I2S connection to the Max98357A audio amplifier.
@@ -53,36 +27,12 @@ audio_out = I2S(
     ibuf=1024
     )
 
-# Start SD Card
-# Connect to the SD card reader via SPI.
-sd = SDCard(slot=3, sck=Pin(14), mosi=Pin(13), miso=Pin(12), cs=Pin(15))
-mount(sd, "/sd")
-#print(os.listdir("/sd"))
-
-def blink():
-    ser.position(0, 180)
-    sleep(1)
-    ser.position(0, 0)
-
-def servoTest():
-    ser.position(0, 720)
-    sleep(1)
-    ser.position(0, 0)
-    
-def flap():
-    mf.value(1)
-    sleep(1)
-    mf.value(0)
-    mb.value(1)
-    sleep(1)
-    mb.value(0)
-
 def playAudio(file):
     print(file)
     #try:
     if True:
         # Open the file and seek data.
-        wav_file = '/sd/{}'.format(file)
+        wav_file = file
         wav = open(wav_file,'rb')
         pos = wav.seek(44) 
 
@@ -106,27 +56,6 @@ def playAudio(file):
     #except (KeyboardInterrupt, Exception) as e:
     #    print('caught exception {} {}'.format(type(e).__name__, e))
 
-# Application Loop
-while True:
-    host, msg = e.recv()
-    if msg:             # msg == None if timeout in recv()
-        #print(host, msg)
-        command = msg.decode('utf-8')
-        if msg == b'8':
-            print('Play Audio')
-            playAudio('snake.wav')
-        elif msg == b'3':
-            print('Blink')
-            blink()
-        elif msg == b'46':
-            print('Flap Wings')
-            flap()
-        elif msg == b'9':
-            print('No action assigned to command 9.')
-            servoTest()
-        elif msg == b'10':
-            print('No action assigned to command 10')
+playAudio('snake.wav')
 
-umount("/sd")
-sd.deinit()
 audio_out.deinit()
