@@ -72,28 +72,28 @@ def blink():
         servo_disable_time = ticks_ms() + 1000
         ser.position(0, 180)
     else:
-        servo_disable_time = None
-        ser.position(0, 0)
+        if servo_disable_time < ticks_ms():
+            servo_disable_time = None
+            ser.position(0, 0)
 
 def flap():
-    print('Flap Called')
-
     global motor_disable_time
     if motor_disable_time == None:
         motor_disable_time = ticks_ms() + 1000
         mf.value(1)
         print('Starting Flap')
-    elif mf.value():
-        motor_disable_time = ticks_ms() + 1000
-        mf.value(0)
-        mb.value(1)
-        print('Reversing Flap')
-    elif mb.value():
-        motor_disable_time = None
-        mb.value(0)
-        print('Done Flapping')
-    else:
-        print('Already flapping.')
+    elif motor_disable_time < ticks_ms():
+        if mf.value():
+            motor_disable_time = ticks_ms() + 1000
+            mf.value(0)
+            mb.value(1)
+            print('Reversing Flap')
+        elif mb.value():
+            motor_disable_time = None
+            mb.value(0)
+            print('Done Flapping')
+        else:
+            print('Already flapping.')
 
 def i2s_callback(arg):
     global current_file
@@ -130,16 +130,10 @@ def playAudio(file):
     audio_out.write(wav_samples_mv[:num_read])
 
 def upkeep():
-    # The servo needs a time to call a return to 0.
     if servo_disable_time != None:
-        if servo_disable_time < ticks_ms():
-            blink()
-
-    # The motor needs a time to disable.
+        blink()
     if motor_disable_time != None:
-        if motor_disable_time < ticks_ms():
-            print('Callign Flap')
-            flap()
+        flap()
 
 # Application Loop
 while True:
