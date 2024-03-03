@@ -6,39 +6,46 @@ print('Device MAC Address:')
 print(network.WLAN().config('mac'))
 print(ubinascii.hexlify(network.WLAN().config('mac'),':').decode())
 
-from machine import I2C, Pin, I2S, SDCard
+from machine import I2C, Pin, I2S, SDCard, Timer
 from servo import Servos
 import time
 from uos import mount, umount
 from os import listdir
-from time import sleep
+from time import ticks_ms, ticks_diff
+from math import fabs
 
-'''
-'''
+# Start ESP NOW
 # A WLAN interface must be active to send()/recv()
 sta = network.WLAN(network.STA_IF)
 sta.active(True)
-#sta.disconnect()   # Because ESP8266 auto-connects to last Access Point
 
 e = espnow.ESPNow()
 e.active(True)
+# End ESP NOW
 
 # Start Servo Config
 # Connect to the PCA9685 servo driver.
+servo_disable_time = None
+
 i2c = I2C(0, scl=3, sda=8)
 ser = Servos(i2c, address=0x40)
+ser.position(0, 0)
 print(ser) # CRITICALLY IMPORTANT. This print statement enables I2S to work properly. Some combination of the i2c assignment, and then a variable assignemtn afterwards makes the I2S sound terrible. Simply printing the variable resolves the issue...
 # End Servo
 
 # Start Motor Config
 # Configure the forward and reverse pins.
+motor_disable_time = None
+
 mf = Pin(9, Pin.OUT) # Motor Forward
 mb = Pin(10, Pin.OUT) # Motor Backward
 # End Motor
 
 # Start Sound Config
+current_file = None
+BUFFER_SIZE = 10000
+
 # Configure the I2S connection to the Max98357A audio amplifier.
-#sample_rate_in_hz = 44100
 bclk = Pin(5) # Clock Pin
 lrc = Pin(6) # Channel Select Pin
 din = Pin(4) # Data Pin
@@ -50,7 +57,7 @@ audio_out = I2S(
     bits=16,
     format=I2S.MONO, 
     rate=44100,
-    ibuf=1024
+    ibuf=BUFFER_SIZE
     )
 
 # Start SD Card
@@ -60,55 +67,85 @@ mount(sd, "/sd")
 #print(os.listdir("/sd"))
 
 def blink():
-    ser.position(0, 180)
-    sleep(1)
-    ser.position(0, 0)
+    global servo_disable_time
+    if servo_disable_time == None:
+        servo_disable_time = ticks_ms() + 1000
+        ser.position(0, 180)
+    else:
+        servo_disable_time = None
+        ser.position(0, 0)
 
-def servoTest():
-    ser.position(0, 720)
-    sleep(1)
-    ser.position(0, 0)
-    
 def flap():
-    mf.value(1)
-    sleep(1)
-    mf.value(0)
-    mb.value(1)
-    sleep(1)
-    mb.value(0)
+    print('Flap Called')
+
+    global motor_disable_time
+    if motor_disable_time == None:
+        motor_disable_time = ticks_ms() + 1000
+        mf.value(1)
+        print('Starting Flap')
+    elif mf.value():
+        motor_disable_time = ticks_ms() + 1000
+        mf.value(0)
+        mb.value(1)
+        print('Reversing Flap')
+    elif mb.value():
+        motor_disable_time = None
+        mb.value(0)
+        print('Done Flapping')
+    else:
+        print('Already flapping.')
+
+def i2s_callback(arg):
+    global current_file
+    global BUFFER_SIZE
+    wav_samples = bytearray(BUFFER_SIZE)
+    wav_samples_mv = memoryview(wav_samples)
+    num_read = current_file.readinto(wav_samples_mv)
+    if num_read == 0:
+        audio_out.irq(None)
+        current_file.close()
+        current_file = None
+    else:
+        audio_out.write(wav_samples_mv[:num_read])
 
 def playAudio(file):
-    print(file)
-    #try:
-    if True:
-        # Open the file and seek data.
-        wav_file = '/sd/{}'.format(file)
-        wav = open(wav_file,'rb')
-        pos = wav.seek(44) 
+    global current_file
+    global BUFFER_SIZE
+    # If the audio file has a value, we are going to abort, and let it finish.
+    if current_file != None:
+        return
 
-        # Allocate audio buffer.
-        #   memoryview used to reduce heap allocation in while loop
-        wav_samples = bytearray(1024)
-        wav_samples_mv = memoryview(wav_samples)
-        audio_out.shift
+    # Open the file and seek data.
+    wav_file = '/sd/{}'.format(file)
+    current_file = open(wav_file,'rb')
+    pos = current_file.seek(44) 
 
-        # Play Audio File
-        while True:
-            num_read = wav.readinto(wav_samples_mv)
-            if num_read == 0:
-                break
-            num_written = 0
-            # Increase the volume.
-            #I2S.shift(buf=wav_samples_mv, bits=16, shift=1)
-            while num_written < num_read:
-                num_written += audio_out.write(wav_samples_mv[num_written:num_read])
-        wav.close()
-    #except (KeyboardInterrupt, Exception) as e:
-    #    print('caught exception {} {}'.format(type(e).__name__, e))
+    # Allocate audio buffer.
+    #   memoryview used to reduce heap allocation in while loop
+    wav_samples = bytearray(BUFFER_SIZE)
+    wav_samples_mv = memoryview(wav_samples)
+    #audio_out.shift
+    num_read = current_file.readinto(wav_samples_mv)
+    audio_out.irq(i2s_callback)
+    audio_out.write(wav_samples_mv[:num_read])
+
+def upkeep():
+    # The servo needs a time to call a return to 0.
+    if servo_disable_time != None:
+        if servo_disable_time < ticks_ms():
+            blink()
+
+    # The motor needs a time to disable.
+    if motor_disable_time != None:
+        if motor_disable_time < ticks_ms():
+            print('Callign Flap')
+            flap()
 
 # Application Loop
 while True:
-    host, msg = e.recv()
+    upkeep()
+
+    host, msg = e.recv(0)
     if msg:             # msg == None if timeout in recv()
         #print(host, msg)
         command = msg.decode('utf-8')
@@ -123,7 +160,6 @@ while True:
             flap()
         elif msg == b'9':
             print('No action assigned to command 9.')
-            servoTest()
         elif msg == b'10':
             print('No action assigned to command 10')
 
